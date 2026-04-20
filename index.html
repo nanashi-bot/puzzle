@@ -2,94 +2,257 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>推しパズル</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>マッチ3 完成版</title>
+
 <style>
 body {
+  margin: 0;
+  background: #111;
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: #000;
-  margin: 0;
+  touch-action: none;
 }
 
-#puzzle {
-  width: 300px;
-  height: 300px;
+#board {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(6, 55px);
+  grid-template-rows: repeat(6, 55px);
   gap: 4px;
 }
 
-.tile {
-  width: 100%;
-  height: 100%;
-  background-image: url("無題393_20260420221458.png");
-  background-size: 150px 150px;
-  background-position: center;
-  background-repeat: no-repeat;
-  border-radius: 20px;
+.cell {
+  width: 55px;
+  height: 55px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #222;
+  transition: transform 0.15s, opacity 0.2s;
 }
 
-.empty {
-  background: #ccc;
+.cell.pop {
+  transform: scale(0);
+  opacity: 0;
+}
+
+.cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
 }
 </style>
 </head>
+
 <body>
 
-<div id="puzzle"></div>
+<div id="board"></div>
 
 <script>
-const puzzle = document.getElementById("puzzle");
-let tiles = [...Array(9).keys()];
+const size = 6;
 
-function draw() {
-  puzzle.innerHTML = "";
-  tiles.forEach((n, i) => {
-    const div = document.createElement("div");
+const images = [
+  "img/1.png",
+  "img/2.png",
+  "img/3.png",
+  "img/4.png",
+  "img/5.png"
+];
 
-    if (n === 8) {
-      div.className = "tile empty";
-    } else {
-      div.className = "tile";
-      div.style.backgroundPosition = "center";
-      
-      div.onclick = () => move(i);
-    }
+let grid = [];
+const board = document.getElementById("board");
 
-    puzzle.appendChild(div);
+let start = null;
+let swapping = false;
+
+// 初期化
+function init() {
+  for (let i = 0; i < size * size; i++) {
+    grid.push(randomImg());
+  }
+  render();
+}
+
+// ランダム
+function randomImg() {
+  return images[Math.floor(Math.random() * images.length)];
+}
+
+// 描画
+function render() {
+  board.innerHTML = "";
+
+  grid.forEach((img, i) => {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+
+    const im = document.createElement("img");
+    im.src = img;
+    cell.appendChild(im);
+
+    addSwipe(cell, i);
+
+    board.appendChild(cell);
   });
 }
 
-function move(i) {
-  const empty = tiles.indexOf(8);
+# =========================
+# 👇 スワイプ操作
+# =========================
+function addSwipe(cell, i) {
+  cell.addEventListener("touchstart", e => {
+    if (swapping) return;
+    start = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      i
+    };
+  });
 
-  const x = i % 3;
-  const y = Math.floor(i / 3);
-  const ex = empty % 3;
-  const ey = Math.floor(empty / 3);
+  cell.addEventListener("touchend", e => {
+    if (!start || swapping) return;
 
-  const canMove =
-    (x === ex && Math.abs(y - ey) === 1) ||
-    (y === ey && Math.abs(x - ex) === 1);
+    let dx = e.changedTouches[0].clientX - start.x;
+    let dy = e.changedTouches[0].clientY - start.y;
 
-  if (canMove) {
-    [tiles[i], tiles[empty]] = [tiles[empty], tiles[i]];
-    draw();
-  }
+    let target = null;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      target = dx > 0 ? start.i + 1 : start.i - 1;
+    } else {
+      target = dy > 0 ? start.i + size : start.i - size;
+    }
+
+    swapAndCheck(start.i, target);
+    start = null;
+  });
 }
 
-// シャッフル（ちゃんと動く配置）
-function shuffle() {
-  for (let i = 0; i < 100; i++) {
-    const rand = Math.floor(Math.random() * 9);
-    move(rand);
-  }
+# =========================
+# 👇 スワップ処理
+# =========================
+function swapAndCheck(a, b) {
+  if (b < 0 || b >= grid.length) return;
+
+  // 横制限
+  if (Math.floor(a / size) !== Math.floor(b / size) && a % size !== b % size) return;
+
+  swapping = true;
+
+  [grid[a], grid[b]] = [grid[b], grid[a]];
+  render();
+
+  setTimeout(() => {
+    let matched = findMatches();
+
+    if (matched.length === 0) {
+      // ❌戻す
+      [grid[a], grid[b]] = [grid[b], grid[a]];
+      render();
+      swapping = false;
+      return;
+    }
+
+    clearMatches(matched);
+  }, 200);
 }
 
-draw();
-shuffle();
+# =========================
+# 👇 マッチ検出（縦横）
+# =========================
+function findMatches() {
+  let matched = new Set();
+
+  // 横
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size - 2; c++) {
+      let i = r * size + c;
+
+      if (
+        grid[i] &&
+        grid[i] === grid[i+1] &&
+        grid[i] === grid[i+2]
+      ) {
+        matched.add(i);
+        matched.add(i+1);
+        matched.add(i+2);
+      }
+    }
+  }
+
+  // 縦
+  for (let r = 0; r < size - 2; r++) {
+    for (let c = 0; c < size; c++) {
+      let i = r * size + c;
+
+      if (
+        grid[i] &&
+        grid[i] === grid[i+size] &&
+        grid[i] === grid[i+size*2]
+      ) {
+        matched.add(i);
+        matched.add(i+size);
+        matched.add(i+size*2);
+      }
+    }
+  }
+
+  return [...matched];
+}
+
+# =========================
+# 👇 消す＋演出＋連鎖
+# =========================
+function clearMatches(matched) {
+  if (matched.length === 0) {
+    swapping = false;
+    return;
+  }
+
+  matched.forEach(i => {
+    grid[i] = null;
+  });
+
+  applyGravity();
+
+  setTimeout(() => {
+    let newMatch = findMatches();
+
+    if (newMatch.length > 0) {
+      clearMatches(newMatch); // 🔁連鎖
+    } else {
+      swapping = false;
+    }
+  }, 200);
+}
+
+# =========================
+# 👇 落下処理
+# =========================
+function applyGravity() {
+  for (let c = 0; c < size; c++) {
+    let column = [];
+
+    for (let r = size - 1; r >= 0; r--) {
+      let i = r * size + c;
+      if (grid[i]) column.push(grid[i]);
+    }
+
+    while (column.length < size) {
+      column.push(randomImg());
+    }
+
+    for (let r = size - 1; r >= 0; r--) {
+      grid[r * size + c] = column[size - 1 - r];
+    }
+  }
+
+  render();
+}
+
+init();
 </script>
 
 </body>
