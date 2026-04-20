@@ -2,32 +2,36 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Slide Puzzle</title>
+<title>推しパズル</title>
 <style>
-  body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background-image: url("https://github.com/nanashi-bot/puzzle/blob/33066849da762d6d22d989794cac21a45351fe36/file_0000000081cc72099165dd84bef86ba4.png");
-    margin: 0;
-  }
-  #puzzle {
-    width: 300px;
-    height: 300px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2px;
-  }
-  .tile {
-    width: 100%;
-    height: 100%;
-    background-image: url("https://picsum.photos/300");
-    background-size: 300px 300px;
-  }
-  .empty {
-    background: #ddd;
-  }
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: #000;
+  margin: 0;
+}
+
+#puzzle {
+  width: 300px;
+  height: 300px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.tile {
+  width: 100%;
+  height: 100%;
+  background-image: url("puzzle.png");
+  background-size: 300px 300px;
+  border-radius: 20px;
+}
+
+.empty {
+  background: transparent;
+}
 </style>
 </head>
 <body>
@@ -42,29 +46,49 @@ function draw() {
   puzzle.innerHTML = "";
   tiles.forEach((n, i) => {
     const div = document.createElement("div");
+
     if (n === 8) {
       div.className = "tile empty";
     } else {
       div.className = "tile";
-      div.style.backgroundPosition = 
+      div.style.backgroundPosition =
         `${-(n % 3) * 100}px ${-Math.floor(n / 3) * 100}px`;
+
       div.onclick = () => move(i);
     }
+
     puzzle.appendChild(div);
   });
 }
 
 function move(i) {
   const empty = tiles.indexOf(8);
-  const valid = [i-1, i+1, i-3, i+3];
-  if (valid.includes(empty)) {
+
+  const x = i % 3;
+  const y = Math.floor(i / 3);
+  const ex = empty % 3;
+  const ey = Math.floor(empty / 3);
+
+  const canMove =
+    (x === ex && Math.abs(y - ey) === 1) ||
+    (y === ey && Math.abs(x - ex) === 1);
+
+  if (canMove) {
     [tiles[i], tiles[empty]] = [tiles[empty], tiles[i]];
     draw();
   }
 }
 
-tiles.sort(() => Math.random() - 0.5);
+// シャッフル（ちゃんと動く配置）
+function shuffle() {
+  for (let i = 0; i < 100; i++) {
+    const rand = Math.floor(Math.random() * 9);
+    move(rand);
+  }
+}
+
 draw();
+shuffle();
 </script>
 
 </body>
