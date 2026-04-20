@@ -53,9 +53,8 @@ function draw() {
       div.className = "tile empty";
     } else {
       div.className = "tile";
-      div.style.backgroundPosition =
-        `${-(n % 3) * 100}px ${-Math.floor(n / 3) * 100}px`;
-
+      div.style.backgroundPosition = "center";
+      
       div.onclick = () => move(i);
     }
 
